@@ -81,11 +81,13 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
         optimizer, T_max=100, eta_min=0.001
     )
 
+    # mean_loss 저장
+    mean_loss = 999
     
-
     model.train()
     for epoch in range(max_epoch):
         epoch_loss, epoch_start = 0, time.time()
+        cls_loss, angle_loss, iou_loss = 0, 0, 0 # loss 저장
         with tqdm(total=num_batches) as pbar:
             for img, gt_score_map, gt_geo_map, roi_mask in train_loader:
                 pbar.set_description('[Epoch {}]'.format(epoch + 1))
@@ -105,21 +107,41 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
                 }
                 pbar.set_postfix(val_dict)
                 
-                # wandb 기록
-                wandb.log(val_dict)
-
+                # batch 별 loss 더하기
+                cls_loss += extra_info['cls_loss']
+                angle_loss += extra_info['angle_loss']
+                iou_loss += extra_info['iou_loss']
+                
         scheduler.step()
 
         print('Mean loss: {:.4f} | Elapsed time: {}'.format(
             epoch_loss / num_batches, timedelta(seconds=time.time() - epoch_start)))
         
+        # batch 별 평균 loss 저장
+        wandb.log({
+            'Cls_epoch_loss': cls_loss / num_batches,
+            'Angle_epoch_loss': angle_loss / num_batches,
+            'IoU_epoch_loss': iou_loss / num_batches,
+            "Mean_epoch_loss": epoch_loss / num_batches,
+        })
 
+        
         if (epoch + 1) % save_interval == 0:
             if not osp.exists(model_dir):
                 os.makedirs(model_dir)
 
             ckpt_fpath = osp.join(model_dir, 'latest.pth')
             torch.save(model.state_dict(), ckpt_fpath)
+
+        # best model save
+        if mean_loss > (epoch_loss/num_batches):
+            if not osp.exists(model_dir):
+                os.makedirs(model_dir)
+
+            ckpt_fpath = osp.join(model_dir, 'best.pth')
+            torch.save(model.state_dict(), ckpt_fpath)       
+            mean_loss = epoch_loss/num_batches
+
 
 
 def main(args):
