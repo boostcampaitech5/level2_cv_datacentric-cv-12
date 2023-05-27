@@ -138,7 +138,7 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
             if not osp.exists(model_dir):
                 os.makedirs(model_dir)
 
-            ckpt_fpath = osp.join(model_dir, 'best.pth')
+            ckpt_fpath = osp.join(model_dir, f'best_{epoch}.pth')
             torch.save(model.state_dict(), ckpt_fpath)       
             mean_loss = epoch_loss/num_batches
 
