@@ -12,7 +12,7 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 
 from east_dataset import EASTDataset
-from dataset import SceneTextDataset
+from dataset2 import SceneTextDataset
 from model import EAST
 
 import wandb
@@ -27,6 +27,7 @@ def parse_args():
     # Conventional args
     parser.add_argument('--data_dir', type=str,
                         default=os.environ.get('SM_CHANNEL_TRAIN', '../data/medical'))
+    parser.add_argument('--json_dir', type=str , default=None) # json_dir 추가
     parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR',
                                                                         'trained_models'))
 
@@ -40,6 +41,9 @@ def parse_args():
     parser.add_argument('--max_epoch', type=int, default=200)
     parser.add_argument('--save_interval', type=int, default=5)
     parser.add_argument('--ignore_tags', type=list, default=['masked', 'excluded-region', 'maintable', 'stamp'])
+    
+    parser.add_argument('--resume', type=str , default=None) # pth 추가
+
 
     args = parser.parse_args()
 
@@ -48,12 +52,13 @@ def parse_args():
 
     return args
 
-
-def do_training(data_dir, model_dir, device, image_size, input_size, num_workers, batch_size,
-                learning_rate, max_epoch, save_interval, ignore_tags):
+# json_dir 인자 추가, resume 추가
+def do_training(data_dir, json_dir, model_dir, device, image_size, input_size, num_workers, batch_size,
+                learning_rate, max_epoch, save_interval, ignore_tags, resume):
     dataset = SceneTextDataset(
         data_dir,
-        split='train',
+        json_dir, # json_dir 추가
+        # split='train', ## split 제거
         image_size=image_size,
         crop_size=input_size,
         ignore_tags=ignore_tags
@@ -69,6 +74,10 @@ def do_training(data_dir, model_dir, device, image_size, input_size, num_workers
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model = EAST()
+    
+    # resume 시 pth를 model에 장착
+    if resume:
+        model.load_state_dict(torch.load(resume))
     model.to(device)
     
     # optimizer 설정
@@ -154,8 +163,9 @@ if __name__ == '__main__':
     wandb.login()
     wandb.init(
         project = 'OCR',
-        name='baseline',
-        entity='ganddddi_datacentric'
+        name='baseline_img300_rm',
+        entity='ganddddi_datacentric',
+        resume= True if args.resume else False
     )
     
     main(args)
