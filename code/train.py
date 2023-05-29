@@ -12,7 +12,7 @@ from torch.optim import lr_scheduler
 from tqdm import tqdm
 
 from east_dataset import EASTDataset
-from dataset2 import SceneTextDataset
+from dataset import SceneTextDataset
 from model import EAST
 
 import wandb
