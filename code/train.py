@@ -43,6 +43,7 @@ def parse_args():
     parser.add_argument('--ignore_tags', type=list, default=['masked', 'excluded-region', 'maintable', 'stamp'])
     
     parser.add_argument('--resume', type=str , default=None) # pth 추가
+    parser.add_argument('--best_loss', type=float , default=None) # best loss 추가
 
 
     args = parser.parse_args()
@@ -52,9 +53,9 @@ def parse_args():
 
     return args
 
-# json_dir 인자 추가, resume 추가
+# json_dir 인자 추가, resume, best_loss 추가
 def do_training(data_dir, json_dir, model_dir, device, image_size, input_size, num_workers, batch_size,
-                learning_rate, max_epoch, save_interval, ignore_tags, resume):
+                learning_rate, max_epoch, save_interval, ignore_tags, resume, best_loss):
     dataset = SceneTextDataset(
         data_dir,
         json_dir, # json_dir 추가
@@ -91,7 +92,7 @@ def do_training(data_dir, json_dir, model_dir, device, image_size, input_size, n
     )
 
     # mean_loss 저장
-    mean_loss = 999
+    mean_loss = best_loss if best_loss else 999
     
     model.train()
     for epoch in range(max_epoch):
@@ -142,7 +143,7 @@ def do_training(data_dir, json_dir, model_dir, device, image_size, input_size, n
             ckpt_fpath = osp.join(model_dir, 'latest.pth')
             torch.save(model.state_dict(), ckpt_fpath)
 
-        # best model save
+        # best 모델 저장
         if mean_loss > (epoch_loss/num_batches):
             if not osp.exists(model_dir):
                 os.makedirs(model_dir)
@@ -159,11 +160,11 @@ def main(args):
 
 if __name__ == '__main__':
     args = parse_args()
-    
+
     wandb.login()
     wandb.init(
         project = 'OCR',
-        name='baseline_img300_rm',
+        name='baseline_img300',
         entity='ganddddi_datacentric',
         resume= True if args.resume else False
     )
